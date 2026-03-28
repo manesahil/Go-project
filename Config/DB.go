@@ -1,40 +1,42 @@
-package Config
+package config
 
 import (
-	"context"
 	"log"
 	"os"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"Project/Model"
+
 	"github.com/joho/godotenv"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
-var DB *pgxpool.Pool
+var DB *gorm.DB
 
 func InitDB() {
+	// Load .env
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("Warning: .env file not found")
 	}
 
-	// Get connection string from env
-	connStr := os.Getenv("DB_CONN_STR")
-	if connStr == "" {
-		log.Fatal("DB_CONN_STR is not set")
+	dsn := os.Getenv("DB_CONN_STR")
+	if dsn == "" {
+		log.Fatal("DB_CONN_STR not set in .env")
 	}
 
-	// Connect to DB
-	DB, err = pgxpool.New(context.Background(), connStr)
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatal("Unable to connect to database:", err)
+		log.Fatal("Failed to connect to database:", err)
 	}
 
-	// Ping DB
-	err = DB.Ping(context.Background())
+	DB = db
+
+	// Auto migrate models
+	err = db.AutoMigrate(&Model.User{})
 	if err != nil {
-		log.Fatal("Database not reachable:", err)
+		log.Fatal("Failed to auto-migrate models:", err)
 	}
 
-	log.Println("Database connected successfully!")
-
+	log.Println("Database connected and migrated successfully!")
 }
